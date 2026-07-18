@@ -2,305 +2,168 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1600">
 <title>errmagic Architecture</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif;
-    background: #f0f2f5;
-    padding: 24px;
+    background: #f6f7f9;
+    padding: 20px;
     color: #232f3e;
-    width: 1600px;
+    width: 1360px;
   }
   .diagram {
-    width: 1552px;
+    width: 1320px;
     background: #fff;
-    border: 2px solid #d5dbdb;
-    border-radius: 12px;
-    padding: 26px 28px 22px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    border: 1px solid #e3e6e8;
+    border-radius: 14px;
+    padding: 30px 34px 28px;
   }
-  h1.main-title { font-size: 26px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
-  h1.main-title .logo {
-    width: 34px; height: 34px; border-radius: 8px;
+  .title { font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+  .title .logo {
+    width: 30px; height: 30px; border-radius: 7px;
     background: linear-gradient(135deg, #8C4FFF, #5A2FB8);
-    color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 17px; display: flex; align-items: center; justify-content: center;
   }
-  .subtitle { font-size: 13px; color: #687078; margin: 4px 0 18px 46px; }
-  .subtitle code { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; background: #f2f3f3; padding: 0 4px; border-radius: 3px; }
+  .title small { font-size: 13px; font-weight: 500; color: #687078; margin-left: 4px; }
 
-  /* ===== 3-zone flow ===== */
-  .flow { display: flex; align-items: stretch; gap: 0; }
-  .zone {
-    border-radius: 8px; position: relative; padding: 30px 14px 14px; background: #fff;
-    display: flex; flex-direction: column; gap: 12px;
-  }
+  .flow { display: flex; align-items: center; }
+
+  /* zones */
+  .zone { border-radius: 12px; position: relative; padding: 34px 20px 20px; }
   .zone-label {
-    position: absolute; top: -13px; left: 14px; background: #fff; padding: 0 8px;
-    font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px;
+    position: absolute; top: -12px; left: 16px; background: #fff; padding: 0 10px;
+    font-size: 15px; font-weight: 800;
   }
-  .zone-note { font-size: 11px; color: #687078; }
+  .zone-browser { border: 2.5px solid #8C4FFF; width: 330px; }
+  .zone-browser .zone-label { color: #6B34D9; }
+  .zone-server { border: 2.5px dashed #1168BD; width: 420px; background: rgba(17,104,189,0.03); }
+  .zone-server .zone-label { color: #0D548F; }
+  .zone-viewer { border: 2.5px solid #7AA116; width: 300px; }
+  .zone-viewer .zone-label { color: #5B7A10; }
 
-  .zone-browser { border: 2px solid #8C4FFF; width: 540px; }
-  .zone-browser > .zone-label { color: #6B34D9; }
-  .zone-server  { border: 2px dashed #1168BD; width: 560px; background: rgba(17,104,189,0.025); }
-  .zone-server  > .zone-label { color: #0D548F; }
-  .zone-viewer  { border: 2px solid #7AA116; width: 300px; }
-  .zone-viewer  > .zone-label { color: #5B7A10; }
-
-  /* connector between zones */
-  .conn {
-    width: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-    text-align: center; flex-shrink: 0;
+  /* node cards */
+  .node {
+    border: 1.5px solid #e3e6e8; border-radius: 10px; background: #fff;
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px;
   }
-  .conn .arrow { font-size: 26px; color: #232f3e; font-weight: 700; line-height: 1; }
-  .conn .conn-label { font-size: 10px; font-weight: 700; color: #232f3e; }
-  .conn .conn-sub { font-size: 9.5px; color: #687078; }
-
-  /* cards */
-  .card { border: 1.5px solid #e3e6e8; border-radius: 8px; background: #fff; padding: 10px 12px; }
-  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-  .card-title { font-size: 13px; font-weight: 700; }
-  .card-title code, .li code, .chip code { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; background: #f2f3f3; padding: 0 4px; border-radius: 3px; }
-  .card-sub { font-size: 10.5px; color: #687078; }
-
-  .icon {
-    width: 34px; height: 34px; border-radius: 7px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; font-size: 17px; color: #fff;
+  .node .icon {
+    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff;
   }
-  .icon-app     { background: linear-gradient(135deg, #667287, #3d4757); }
-  .icon-err     { background: linear-gradient(135deg, #8C4FFF, #5A2FB8); }
-  .icon-api     { background: linear-gradient(135deg, #2E8CE0, #1168BD); }
-  .icon-s3      { background: linear-gradient(135deg, #7AA116, #4E6B0C); }
-  .icon-db      { background: linear-gradient(135deg, #DD344C, #A31A30); }
-  .icon-viewer  { background: linear-gradient(135deg, #E07A29, #B85C10); }
-  .icon-dev     { background: linear-gradient(135deg, #232f3e, #10171f); }
+  .node .t { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .node .s { font-size: 12px; color: #687078; margin-top: 3px; line-height: 1.5; }
+  .node code, .arrow-label code { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; background: #f2f3f3; padding: 0 4px; border-radius: 3px; }
 
-  ul.feats { list-style: none; margin-top: 4px; }
-  ul.feats .li {
-    font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-bottom: 4px;
-    background: #f8f9fa; border: 1px solid #eef0f2; line-height: 1.5;
+  .icon-app    { background: linear-gradient(135deg, #8C4FFF, #5A2FB8); }
+  .icon-api    { background: linear-gradient(135deg, #2E8CE0, #1168BD); }
+  .icon-s3     { background: linear-gradient(135deg, #7AA116, #4E6B0C); }
+  .icon-db     { background: linear-gradient(135deg, #DD344C, #A31A30); }
+  .icon-viewer { background: linear-gradient(135deg, #E07A29, #B85C10); }
+
+  .vgap { height: 14px; }
+
+  /* horizontal arrow between zones */
+  .harrow { width: 110px; flex-shrink: 0; text-align: center; padding: 0 6px; }
+  .harrow .line { font-size: 30px; line-height: 1; color: #232f3e; }
+  .harrow .arrow-label { font-size: 12.5px; font-weight: 700; margin-top: 2px; }
+  .harrow .arrow-sub { font-size: 11px; color: #687078; margin-top: 2px; line-height: 1.4; }
+
+  /* vertical arrow inside server zone */
+  .varrow { text-align: center; font-size: 20px; color: #9aa2ab; line-height: 1; padding: 6px 0; }
+  .split { display: flex; gap: 12px; }
+  .split .node { flex: 1; padding: 12px 14px; }
+  .split .node .icon { width: 38px; height: 38px; font-size: 19px; }
+  .split .node .t { font-size: 14px; }
+  .split .node .s { font-size: 11.5px; }
+
+  .foot { margin-top: 24px; display: flex; gap: 10px; }
+  .tag {
+    font-size: 12.5px; padding: 6px 14px; border-radius: 999px; font-weight: 600;
   }
-  ul.feats .li b { font-weight: 700; }
-  .li-purple { border-left: 3px solid #8C4FFF !important; }
-  .li-blue   { border-left: 3px solid #1168BD !important; }
-  .li-green  { border-left: 3px solid #7AA116 !important; }
-  .li-red    { border-left: 3px solid #DD344C !important; }
-  .li-orange { border-left: 3px solid #E07A29 !important; }
-
-  .step { display: flex; gap: 7px; align-items: flex-start; font-size: 11px; margin-bottom: 5px; line-height: 1.5; }
-  .step .num {
-    width: 16px; height: 16px; border-radius: 50%; background: #1168BD; color: #fff;
-    font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; margin-top: 1px;
-  }
-
-  .inner-split { display: flex; gap: 10px; }
-  .inner-split > div { flex: 1; }
-
-  .down-arrow { text-align: center; font-size: 16px; color: #687078; line-height: 1; margin: -4px 0; }
-  .down-note { text-align: center; font-size: 9.5px; color: #687078; margin-bottom: 2px; }
-
-  /* payload strip */
-  .payload {
-    margin-top: 16px; border: 1.5px solid #8C4FFF; border-radius: 8px; padding: 10px 14px;
-    background: rgba(140,79,255,0.04); display: flex; gap: 16px; align-items: flex-start;
-  }
-  .payload .p-title { font-size: 12px; font-weight: 800; color: #6B34D9; white-space: nowrap; margin-top: 2px; }
-  .payload code.block {
-    font-family: 'SF Mono', Menlo, monospace; font-size: 11px; line-height: 1.6; color: #232f3e;
-    display: block; white-space: pre;
-  }
-  .payload .p-note { font-size: 10.5px; color: #687078; margin-top: 2px; width: 330px; line-height: 1.6; }
-
-  /* bottom notes */
-  .notes { margin-top: 12px; display: flex; gap: 10px; }
-  .note {
-    flex: 1; border-radius: 6px; padding: 8px 10px; font-size: 10.5px; line-height: 1.6;
-    border: 1px solid;
-  }
-  .note b { font-weight: 800; }
-  .note-purple { background: rgba(140,79,255,0.06); border-color: #c9aef7; color: #4a2683; }
-  .note-blue   { background: rgba(17,104,189,0.06); border-color: #9cc5e8; color: #0D3F6E; }
-  .note-green  { background: rgba(122,161,22,0.07); border-color: #c2d68a; color: #465F0B; }
-  .note-red    { background: rgba(221,52,76,0.06); border-color: #eda6b1; color: #7E1425; }
-
-  .chip {
-    display: inline-block; font-size: 9.5px; font-weight: 700; border-radius: 999px;
-    padding: 1px 8px; margin-left: 6px; vertical-align: 1px;
-  }
-  .chip-req { background: #DD344C; color: #fff; }
-  .chip-opt { background: #eef0f2; color: #687078; }
+  .tag-purple { background: rgba(140,79,255,0.09); color: #5A2FB8; }
+  .tag-red    { background: rgba(221,52,76,0.08);  color: #A31A30; }
+  .tag-blue   { background: rgba(17,104,189,0.08); color: #0D548F; }
 </style>
 </head>
 <body>
 <div class="diagram">
-  <h1 class="main-title"><span class="logo">⚡</span>errmagic — アーキテクチャ全体図</h1>
-  <div class="subtitle">
-    外部SaaSなしのSentryライクなブラウザ用エラーレポーター。<b>紫の枠がこのライブラリの守備範囲</b>で、青の点線枠（受信API・保存先）は利用者側で用意する。
-    インストール: <code>pnpm add github:sgash708/errmagic#v0.1.0</code>（dist コミット済み・prepare ビルド不要）
+  <div class="title">
+    <span class="logo">⚡</span>errmagic
+    <small>紫 = このライブラリ ／ 青点線 = 利用者側で用意するインフラ</small>
   </div>
 
   <div class="flow">
-    <!-- ========== zone 1: browser ========== -->
+    <!-- browser -->
     <div class="zone zone-browser">
-      <div class="zone-label">🌐 ブラウザ（利用側アプリ）</div>
-
-      <div class="card">
-        <div class="card-head">
-          <div class="icon icon-app">🖥</div>
-          <div>
-            <div class="card-title">アプリ（例: <code>my-app</code>）</div>
-            <div class="card-sub">init はエントリポイントで1回だけ呼ぶ</div>
-          </div>
+      <div class="zone-label">🌐 ブラウザ</div>
+      <div class="node">
+        <div class="icon icon-app">⚡</div>
+        <div>
+          <div class="t">アプリ + errmagic</div>
+          <div class="s">JSエラーを自動捕捉<br>直近60秒を録画（全マスク）</div>
         </div>
-        <ul class="feats">
-          <li class="li li-purple"><code>initErrmagic({ endpoint, app })</code> — <code>window.onerror</code> / <code>unhandledrejection</code> を自動捕捉</li>
-          <li class="li li-purple"><code>reportError(err, context)</code> — 手動報告（catch節などから）</li>
-          <li class="li li-purple"><code>&lt;ErrmagicErrorBoundary&gt;</code>（<code>errmagic/react</code>・React&gt;=18 optional）</li>
-        </ul>
       </div>
-
-      <div class="down-arrow">⬇</div>
-
-      <div class="card" style="border-color:#c9aef7;">
-        <div class="card-head">
-          <div class="icon icon-err">⚡</div>
-          <div>
-            <div class="card-title">errmagic 本体</div>
-            <div class="card-sub">依存は rrweb のみ。録画はメモリ上リングバッファのみ（常時送信なし）</div>
-          </div>
-        </div>
-        <ul class="feats">
-          <li class="li li-purple"><b>録画:</b> rrweb リングバッファで直近<b>約60秒</b>を保持（30秒毎checkout・2セグメント式）</li>
-          <li class="li li-red"><b>マスキング:</b> 全テキスト・全入力値をデフォルトマスク、<code>img,video,canvas</code> は全ブロック。<code>.rr-unmask</code> のみ解除可</li>
-          <li class="li li-purple"><b>デデュープ:</b> 同一エラーは5分間再送信しない／リプレイ添付はセッション毎・同一エラー1回</li>
-          <li class="li li-purple"><b>送信:</b> エラー発生時に gzip + base64 して <code>fetch keepalive</code> で fire-and-forget</li>
-        </ul>
-      </div>
-
-      <div class="zone-note">※ 送信失敗・レポーター内部の例外はすべて握りつぶし、アプリを壊さない（再入ガードあり）</div>
     </div>
 
-    <!-- conn 1 -->
-    <div class="conn">
-      <div class="arrow">➜</div>
-      <div class="conn-label">POST JSON</div>
-      <div class="conn-sub">エラー + replay<br>(fire-and-forget<br>リトライなし)</div>
+    <div class="harrow">
+      <div class="line">➔</div>
+      <div class="arrow-label">POST JSON</div>
+      <div class="arrow-sub">エラー + リプレイ<br>fire-and-forget</div>
     </div>
 
-    <!-- ========== zone 2: your infra ========== -->
+    <!-- server -->
     <div class="zone zone-server">
-      <div class="zone-label">🛠 あなたのインフラ（自前実装）</div>
-
-      <div class="card" style="border-color:#9cc5e8;">
-        <div class="card-head">
-          <div class="icon icon-api">📡</div>
+      <div class="zone-label">🛠 自前で用意</div>
+      <div class="node">
+        <div class="icon icon-api">📡</div>
+        <div>
+          <div class="t">エラー受信API</div>
+          <div class="s">検証して振り分けるだけ（<code>204</code> を返す）</div>
+        </div>
+      </div>
+      <div class="varrow">▼&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼</div>
+      <div class="split">
+        <div class="node">
+          <div class="icon icon-s3">🪣</div>
           <div>
-            <div class="card-title">エラー受信API<span class="chip chip-req">必須</span></div>
-            <div class="card-sub"><code>endpoint</code> に指定する POST の受け口。実装は自由（Hono / Express / Lambda など）</div>
+            <div class="t">S3 など</div>
+            <div class="s">リプレイを保存<br><code>.json.gz</code></div>
           </div>
         </div>
-        <div style="margin-top:6px;">
-          <div class="step"><span class="num">1</span><span>ペイロード検証（<code>app</code> 名・Origin・rate limit などの abuse 対策）</span></div>
-          <div class="step"><span class="num">2</span><span><code>replay</code> を <b>base64 デコードだけ</b>して <code>.json.gz</code> のままストレージへ保存（<b>解凍しない</b>）</span></div>
-          <div class="step"><span class="num">3</span><span>エラー本体（name / message / stack / url …）を保存・通知。key をエラーに紐付け</span></div>
-          <div class="step"><span class="num">4</span><span><code>204 No Content</code> を返す（クライアントはレスポンスを見ない）</span></div>
+        <div class="node">
+          <div class="icon icon-db">🗄</div>
+          <div>
+            <div class="t">DB / Slack</div>
+            <div class="s">エラー本体を<br>保存・通知</div>
+          </div>
         </div>
       </div>
-
-      <div class="down-arrow">⬇</div>
-
-      <div class="inner-split">
-        <div class="card" style="border-color:#c2d68a;">
-          <div class="card-head">
-            <div class="icon icon-s3">🪣</div>
-            <div>
-              <div class="card-title">オブジェクトストレージ<span class="chip chip-opt">リプレイ利用時</span></div>
-              <div class="card-sub">S3 / GCS / R2 など</div>
-            </div>
-          </div>
-          <ul class="feats">
-            <li class="li li-green">replay を <code>&lt;app&gt;/&lt;uuid&gt;.json.gz</code> で保存</li>
-            <li class="li li-green">閲覧時に presigned URL を発行</li>
-          </ul>
-        </div>
-        <div class="card" style="border-color:#eda6b1;">
-          <div class="card-head">
-            <div class="icon icon-db">🗄</div>
-            <div>
-              <div class="card-title">保存・通知先<span class="chip chip-opt">任意</span></div>
-              <div class="card-sub">DB / ログ基盤 / Slack など</div>
-            </div>
-          </div>
-          <ul class="feats">
-            <li class="li li-red">エラーの蓄積・検索・通知</li>
-            <li class="li li-red">集計・グルーピングはサーバー側の責務</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="zone-note">※ ボディ上限に注意: replay は圧縮後でも数百KB〜数MB（API Gateway / nginx / フレームワークのデフォルト値を確認）</div>
     </div>
 
-    <!-- conn 2 -->
-    <div class="conn">
-      <div class="arrow">➜</div>
-      <div class="conn-label">presigned URL</div>
-      <div class="conn-sub"><code style="font-size:9px;">aws s3 presign</code><br>で発行して渡す</div>
+    <div class="harrow">
+      <div class="line">➔</div>
+      <div class="arrow-label">presigned URL</div>
+      <div class="arrow-sub">閲覧時に発行</div>
     </div>
 
-    <!-- ========== zone 3: viewer ========== -->
+    <!-- viewer -->
     <div class="zone zone-viewer">
-      <div class="zone-label">🔍 閲覧（開発者）</div>
-
-      <div class="card">
-        <div class="card-head">
-          <div class="icon icon-dev">👤</div>
-          <div>
-            <div class="card-title">開発者</div>
-            <div class="card-sub">エラー通知を見てリプレイを確認</div>
-          </div>
+      <div class="zone-label">🔍 開発者</div>
+      <div class="node">
+        <div class="icon icon-viewer">▶</div>
+        <div>
+          <div class="t">同梱ビューア</div>
+          <div class="s"><code>viewer/index.html</code> を<br>開いてリプレイ再生</div>
         </div>
-      </div>
-
-      <div class="down-arrow">⬇</div>
-
-      <div class="card" style="border-color:#f0c9a6;">
-        <div class="card-head">
-          <div class="icon icon-viewer">▶</div>
-          <div>
-            <div class="card-title"><code>viewer/index.html</code></div>
-            <div class="card-sub">rrweb-player 同梱ビューア</div>
-          </div>
-        </div>
-        <ul class="feats">
-          <li class="li li-orange">単一HTML・サーバー不要（ローカルでそのまま開く）</li>
-          <li class="li li-orange"><code>?src=&lt;presigned URL&gt;</code> で再生</li>
-          <li class="li li-orange">または <code>.json.gz</code> のファイル選択でも再生可</li>
-        </ul>
       </div>
     </div>
   </div>
 
-  <!-- payload contract -->
-  <div class="payload">
-    <div class="p-title">📦 送信ペイロード<br>（API と共有する契約）</div>
-    <code class="block">POST {endpoint}  Content-Type: application/json
-{ "app": "my-app", "name": "TypeError", "message": "...",        // message は最大2000文字
-  "stack": "...", "url": "https://...", "user_agent": "...",     // stack は最大20000文字
-  "occurred_at": "2026-07-15T00:00:00.000Z",
-  "replay": "&lt;base64(gzip(rrweb events JSON))&gt;", "replay_format": "rrweb-gzip-base64" }  // 無ければ両方 null</code>
-    <div class="p-note">replay は「base64 → gzip バイナリ」の二重包み。<b>API側は base64 デコードだけして gzip のまま保存</b>すれば、ビューアがそのまま読める。</div>
-  </div>
-
-  <!-- bottom notes -->
-  <div class="notes">
-    <div class="note note-purple"><b>⚡ エラーループ防止:</b> 公開経路（init / reportError / リスナー / ErrorBoundary）はすべて try/catch。送信失敗は握りつぶし、報告処理中のエラーは再入ガードで無視。</div>
-    <div class="note note-red"><b>🔒 プライバシー:</b> デフォルト全マスク（テキスト・入力値）。<code>.rr-unmask</code> を付けた要素のテキストだけ解除。入力値のマスクは解除不可。</div>
-    <div class="note note-blue"><b>🧭 フォールバック:</b> <code>CompressionStream</code> 非対応ブラウザではリプレイなしでエラーのみ送信（機能検出）。</div>
-    <div class="note note-green"><b>🏷 バージョン運用:</b> git 依存（<code>github:sgash708/errmagic#vX.Y.Z</code>）。dist/ コミット済みのため consumer 側でのビルド不要。</div>
+  <div class="foot">
+    <span class="tag tag-purple">⚡ 送信失敗は握りつぶす — アプリを壊さない</span>
+    <span class="tag tag-red">🔒 テキスト・入力値はデフォルト全マスク</span>
+    <span class="tag tag-blue">⏱ 同一エラーは5分デデュープ</span>
   </div>
 </div>
 </body>
