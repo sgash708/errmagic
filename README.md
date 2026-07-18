@@ -20,6 +20,10 @@ errmagic is a client-side (browser) library. **You provide the ingest API and th
 
 Any vendor works — the S3 part can be GCS / R2 / anything that can issue presigned-URL equivalents.
 
+### Examples
+
+[`examples/`](examples/README.md) contains a minimal end-to-end setup: a Vite frontend with errmagic integrated, a Hono ingest API (stores replays on local disk), and Terraform for the S3 replay bucket. The front + api pair runs entirely on your machine — report an error, then play back the saved replay with the bundled viewer.
+
 ## Installation
 
 ```bash

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>errmagic example</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    button { display: block; margin: 8px 0; padding: 8px 16px; font-size: 14px; cursor: pointer; }
+    input { display: block; margin: 12px 0; padding: 6px 10px; width: 280px; }
+    .rr-unmask { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>errmagic example</h1>
+  <p>
+    Click a button to trigger an error. errmagic reports it to
+    <code>http://localhost:8787/errors</code> with a replay of the last ~60s.
+  </p>
+
+  <button id="throw">Throw an uncaught error</button>
+  <button id="reject">Trigger an unhandled rejection</button>
+  <button id="manual">Report manually via reportError()</button>
+
+  <input placeholder="Type here — input values are always masked in the replay">
+  <p>This paragraph is masked in the replay (default).</p>
+  <p class="rr-unmask">This paragraph has .rr-unmask, so its text stays readable.</p>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
