@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "外部SaaSなしのSentryライクなブラウザ用エラーレポーター",
+  "description": "Sentry-like browser error reporter with rrweb session replay — no external SaaS",
   "license": "MIT",
   "author": "sgash708",
   "repository": {
@@ -26,6 +26,7 @@
     "dist",
     "viewer",
     "README.md",
+    "README.ja.md",
     "AGENTS.md"
   ],
   "scripts": {

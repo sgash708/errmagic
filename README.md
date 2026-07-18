@@ -1,32 +1,34 @@
 # errmagic
 
-外部SaaSなしのSentryライクなブラウザ用エラーレポーター。ブラウザJSエラーを捕捉し、直近約60秒の rrweb セッションリプレイを添えて任意のエンドポイントへ POST します。`dist/` をコミットしているため、git 依存でそのまま `pnpm install` できます（prepare ビルド不要）。
+**English** | [日本語](README.ja.md)
 
-## 全体アーキテクチャ
+A Sentry-like browser error reporter with no external SaaS. It captures browser JS errors and POSTs them to any endpoint you own, attaching an rrweb session replay of the last ~60 seconds. `dist/` is committed, so it installs directly as a git dependency (no `prepare` build needed).
 
-errmagic はクライアント（ブラウザ）側のライブラリです。**エラーの受け口となる API とリプレイの保存先はあなたのインフラで用意します**。
+## Architecture
 
-![errmagic アーキテクチャ全体図](docs/architecture-diagram.png)
+errmagic is a client-side (browser) library. **You provide the ingest API and the replay storage on your own infrastructure.**
 
-### 必要なインフラ
+![errmagic architecture](docs/architecture-diagram.en.png)
 
-| コンポーネント | 必須 | 役割 |
+### Required infrastructure
+
+| Component | Required | Role |
 |---|---|---|
-| エラー受信API | ✅ | `endpoint` に指定する POST 受け口。後述の「API側でやること」を実装する |
-| オブジェクトストレージ（S3 など） | リプレイを使うなら | `replay` を `.json.gz` として保存。ビューアは presigned URL で読む |
-| エラー本体の保存先（DB / ログ基盤 / Slack 通知など） | 任意 | エラーの蓄積・検索・通知。方式は自由 |
+| Error ingest API | ✅ | The POST endpoint you pass as `endpoint`. Implements the responsibilities described in "What your API must do" below |
+| Object storage (S3 etc.) | If you use replays | Stores the replay as `.json.gz`. The viewer reads it via a presigned URL |
+| Error storage / notification (DB / logs / Slack etc.) | Optional | Persisting, searching, and alerting on errors. Entirely up to you |
 
-サーバー・保存先のベンダーは問いません（S3 の部分は GCS / R2 等でも presigned URL 相当が発行できれば同じ構成が組めます）。
+Any vendor works — the S3 part can be GCS / R2 / anything that can issue presigned-URL equivalents.
 
-## インストール
+## Installation
 
 ```bash
 pnpm add github:sgash708/errmagic#v0.1.0
 ```
 
-React の ErrorBoundary（`errmagic/react`）を使う場合は `react >=18` が peerDependency（optional）です。
+If you use the React ErrorBoundary (`errmagic/react`), `react >=18` is an optional peerDependency.
 
-## 使い方
+## Usage
 
 ```ts
 import { initErrmagic, reportError } from "errmagic";
@@ -35,12 +37,12 @@ initErrmagic({
   endpoint: "https://api.example.com/errors",
   app: "my-app",
   // replay?: boolean;              // default true
-  // dedupeWindowMs?: number;       // default 300_000 (5分)
-  // beforeSend?: (report) => report | null; // nullを返すと送信中止
+  // dedupeWindowMs?: number;       // default 300_000 (5 min)
+  // beforeSend?: (report) => report | null; // return null to cancel sending
 });
 
-// window.onerror / unhandledrejection は自動で捕捉されます。
-// 手動で報告したい場合:
+// window.onerror / unhandledrejection are captured automatically.
+// To report manually:
 try {
   doSomething();
 } catch (err) {
@@ -62,36 +64,36 @@ function App() {
 }
 ```
 
-`fallback` prop を渡すとデフォルトの日本語簡易エラー画面（+再読み込みボタン）の代わりに任意の要素を表示できます。
+Pass a `fallback` prop to render your own element instead of the default minimal error screen (with a reload button).
 
-## 送信ペイロード
+## Payload
 
 ```jsonc
 POST {endpoint}  Content-Type: application/json
 {
   "app": "my-app",
   "name": "TypeError",
-  "message": "Cannot read ...",         // 最大2000文字に切り詰め
-  "stack": "TypeError: ...\n at ...",   // 最大20000文字に切り詰め
+  "message": "Cannot read ...",         // truncated to 2000 chars
+  "stack": "TypeError: ...\n at ...",   // truncated to 20000 chars
   "url": "https://app.example.com/...",
   "user_agent": "Mozilla/...",
   "occurred_at": "2026-07-15T00:00:00.000Z",
-  "replay": "<base64(gzip(JSON.stringify(rrweb events)))>", // 無い場合は null
-  "replay_format": "rrweb-gzip-base64"                       // replayがnullならnull
+  "replay": "<base64(gzip(JSON.stringify(rrweb events)))>", // null if absent
+  "replay_format": "rrweb-gzip-base64"                       // null if replay is null
 }
 ```
 
-## API側でやること
+## What your API must do
 
-`endpoint` に指定する受信APIの責務です。
+These are the responsibilities of the ingest API you pass as `endpoint`.
 
-1. **ペイロードの受信・検証**: 上記 JSON を受け取り、`app` が想定するアプリ名かなどを検証する。
-2. **replay の保存**: `replay` を **base64 デコードするとそのまま gzip バイナリ**になるので、解凍せず `.json.gz` としてオブジェクトストレージに保存する（ビューアが読める形式）。保存した key を エラーレコードに紐付けておく。
-3. **エラー本体の保存・通知**: `name` / `message` / `stack` / `url` などを DB に保存したり、Slack 等に通知する（方式は自由）。
-4. **レスポンス**: クライアントは fire-and-forget（レスポンスを見ない）ので、`204 No Content` を返せば十分。エラーを返してもリトライはされません。
+1. **Receive and validate the payload**: accept the JSON above and validate e.g. that `app` is an expected app name.
+2. **Store the replay**: base64-decoding `replay` yields a gzip binary as-is, so store it **without decompressing** as `.json.gz` in object storage (the format the viewer reads). Keep the object key associated with the error record.
+3. **Store / notify the error itself**: save `name` / `message` / `stack` / `url` etc. to a DB, notify Slack, and so on — entirely up to you.
+4. **Respond**: the client is fire-and-forget (it never reads the response), so `204 No Content` is enough. Returning an error does not trigger a retry.
 
 ```ts
-// 実装例（Hono + AWS SDK v3）
+// Example (Hono + AWS SDK v3)
 app.post("/errors", async (c) => {
   const report = await c.req.json();
   if (report.app !== "my-app") return c.body(null, 400);
@@ -102,7 +104,7 @@ app.post("/errors", async (c) => {
     await s3.send(new PutObjectCommand({
       Bucket: "your-error-replay-bucket",
       Key: replayKey,
-      Body: Buffer.from(report.replay, "base64"), // デコードするだけ。解凍しない
+      Body: Buffer.from(report.replay, "base64"), // just decode — do not decompress
       ContentType: "application/gzip",
     }));
   }
@@ -112,58 +114,62 @@ app.post("/errors", async (c) => {
 });
 ```
 
-### 運用上の注意
+### Operational notes
 
-- **ボディサイズ上限**: `replay` は圧縮後でも数百KB〜数MBになり得ます。API側のリクエストボディ上限（API Gateway / nginx / フレームワークのデフォルト）を確認してください。超過時に 413 を返しても、クライアントはエラーになりません（握りつぶします）。
-- **CORS**: アプリと別オリジンにエンドポイントを置く場合は、`POST` + `Content-Type: application/json` を許可する CORS 設定が必要です。
-- **abuse 対策**: エンドポイントはブラウザから叩ける公開URLになるため、rate limit や `app` 名の検証、Origin チェックなどを入れることを推奨します。
-- **重複**: クライアント側で5分デデュープしていますが、複数ユーザーが同じエラーを踏めばその数だけ届きます。集計・グルーピングはサーバー側の責務です。
+- **Request body size limit**: a `replay` can be hundreds of KB to a few MB even after compression. Check the body size limits of your API (API Gateway / nginx / framework defaults). Returning 413 on overflow does not break the client (failures are swallowed).
+- **CORS**: if the endpoint lives on a different origin than your app, you need a CORS configuration allowing `POST` with `Content-Type: application/json`.
+- **Abuse protection**: the endpoint is a public URL callable from any browser, so consider rate limiting, validating the `app` name, and checking the Origin header.
+- **Duplicates**: the client dedupes for 5 minutes, but the same error hitting multiple users arrives once per user. Aggregation and grouping are the server's responsibility.
 
-## マスキング方針（プライバシー）
+## Masking policy (privacy)
 
-- **デフォルトで全テキスト・全入力値をマスクします**（`maskAllInputs: true` / `maskTextSelector: '*'`）。
-- `img,video,canvas` はブロック対象（`blockSelector`）となり、リプレイに一切含まれません。
-- テキストのマスクを解除したい要素にだけ `.rr-unmask` クラスを付与してください。それ以外は解除できません。
-- 入力値（input/textarea等）のマスクは解除できません（`maskAllInputs: true` 固定）。
+- **All text and all input values are masked by default** (`maskAllInputs: true` / `maskTextSelector: '*'`).
+- `img,video,canvas` are blocked (`blockSelector`) and never appear in the replay.
+- Add the `.rr-unmask` class only to elements whose text may be unmasked. Nothing else can be unmasked.
+- Input values (input/textarea etc.) can never be unmasked (`maskAllInputs: true` is fixed).
 
 ```html
-<!-- このdiv配下のテキストのみマスクされずリプレイに残る -->
-<div class="rr-unmask">公開して問題ない文言</div>
+<!-- Only text under this div stays unmasked in the replay -->
+<div class="rr-unmask">Text that is safe to expose</div>
 ```
 
-## その他の挙動
+## Other behavior
 
-- 同一エラーはクライアント側で **5分間**（`dedupeWindowMs`）デデュープされ、再送信しません。
-- リプレイの添付は **セッション毎・同一エラーにつき1回** のみ試行します（2回目以降はリプレイなしで送信）。
-- `CompressionStream` 非対応ブラウザではリプレイを添付せずエラーのみ送信します。
-- レポーター自身が例外を投げてアプリを壊すことはありません（送信失敗は握りつぶします）。
+- Identical errors are deduped client-side for **5 minutes** (`dedupeWindowMs`) and not re-sent.
+- A replay is attached **only once per session per error key** (subsequent reports are sent without a replay).
+- On browsers without `CompressionStream`, errors are sent without a replay.
+- The reporter itself never throws and never breaks your app (send failures are swallowed).
 
-## リプレイビューア
+## Replay viewer
 
-`viewer/index.html` は rrweb-player（CDN）でリプレイをローカル再生するための単一HTMLです。サーバーは不要です。
+`viewer/index.html` is a single HTML file that plays replays locally with rrweb-player (CDN). No server needed.
 
-1. ブラウザで `viewer/index.html` を直接開く
-2. S3などに保存された replay に対して presigned URL を発行する
+1. Open `viewer/index.html` directly in a browser
+2. Issue a presigned URL for a replay stored in S3 or similar
 
    ```bash
    aws s3 presign s3://your-error-replay-bucket/<key>
    ```
 
-3. 発行されたURLを `?src=` に付けて開く
+3. Open it with the URL as `?src=`
 
    ```
    viewer/index.html?src=<presigned URL>
    ```
 
-   もしくはファイル選択（`.json.gz` 等）から読み込むことも可能です。
+   Alternatively, load a file (`.json.gz` etc.) via the file picker.
 
-## 開発
+## Development
 
 ```bash
 pnpm install
 pnpm test        # vitest
 pnpm typecheck    # tsc --noEmit
-pnpm build        # tsup（dist/ を再生成）
+pnpm build        # tsup (regenerates dist/)
 ```
 
-`dist/` はリポジトリにコミットされています。`src/` を変更したら `pnpm build` して `dist/` の差分もコミットしてください。
+`dist/` is committed to the repository. After changing `src/`, run `pnpm build` and commit the `dist/` diff as well.
+
+## License
+
+[MIT](LICENSE)

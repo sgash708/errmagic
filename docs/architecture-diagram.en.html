@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>errmagic Architecture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif;
+    background: #fff;
+    color: #232f3e;
+    width: 1240px;
+  }
+  .canvas { position: relative; width: 1240px; height: 500px; }
+
+  /* zones */
+  .zone { position: absolute; border-radius: 16px; }
+  .zone-label {
+    position: absolute; top: 14px; left: 0; width: 100%; text-align: center;
+    font-size: 15px; font-weight: 800;
+  }
+  .zone-browser { left: 40px;  top: 70px; width: 220px; height: 360px; background: rgba(140,79,255,0.06); }
+  .zone-browser .zone-label { color: #6B34D9; }
+  .zone-server  { left: 400px; top: 70px; width: 460px; height: 360px; background: rgba(17,104,189,0.05); border: 2px dashed #5c9bd6; }
+  .zone-server .zone-label { color: #0D548F; }
+  .zone-viewer  { left: 1000px; top: 70px; width: 200px; height: 360px; background: rgba(122,161,22,0.07); }
+  .zone-viewer .zone-label { color: #5B7A10; }
+
+  /* nodes: icon + label, centered on (x,y) via translate */
+  .node { position: absolute; transform: translate(-50%, -50%); text-align: center; width: 170px; }
+  .node .icon {
+    width: 76px; height: 76px; border-radius: 18px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: center; font-size: 38px; color: #fff;
+    box-shadow: 0 3px 10px rgba(35,47,62,0.18);
+  }
+  .node .label { font-size: 15px; font-weight: 800; margin-top: 8px; line-height: 1.3; }
+  .node .cap { font-size: 11.5px; color: #687078; margin-top: 2px; }
+  .node .cap code { font-family: 'SF Mono', Menlo, monospace; font-size: 10.5px; }
+
+  .icon-app    { background: linear-gradient(135deg, #8C4FFF, #5A2FB8); }
+  .icon-api    { background: linear-gradient(135deg, #2E8CE0, #1168BD); }
+  .icon-s3     { background: linear-gradient(135deg, #7AA116, #4E6B0C); }
+  .icon-db     { background: linear-gradient(135deg, #DD344C, #A31A30); }
+  .icon-viewer { background: linear-gradient(135deg, #E07A29, #B85C10); }
+
+  svg.arrows { position: absolute; left: 0; top: 0; pointer-events: none; }
+  .alabel { font-size: 12.5px; font-weight: 700; fill: #232f3e; }
+  .alabel-sub { font-size: 11px; font-weight: 500; fill: #687078; }
+
+  .brand { position: absolute; left: 40px; top: 20px; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .brand .logo {
+    width: 26px; height: 26px; border-radius: 6px; font-size: 15px;
+    background: linear-gradient(135deg, #8C4FFF, #5A2FB8); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="brand"><span class="logo">⚡</span>errmagic</div>
+
+  <div class="zone zone-browser"><div class="zone-label">Browser</div></div>
+  <div class="zone zone-server"><div class="zone-label">🛠 You provide</div></div>
+  <div class="zone zone-viewer"><div class="zone-label">Developer</div></div>
+
+  <svg class="arrows" width="1240" height="500">
+    <defs>
+      <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#232f3e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+    <!-- app -> api -->
+    <line x1="218" y1="250" x2="472" y2="250" stroke="#232f3e" stroke-width="2.5" marker-end="url(#ah)"/>
+    <text class="alabel" x="345" y="230" text-anchor="middle">POST error + replay</text>
+    <!-- api -> s3 -->
+    <path d="M 562 232 C 620 205, 635 170, 693 170" fill="none" stroke="#232f3e" stroke-width="2.5" marker-end="url(#ah)"/>
+    <!-- api -> db -->
+    <path d="M 562 268 C 620 295, 635 330, 693 330" fill="none" stroke="#232f3e" stroke-width="2.5" marker-end="url(#ah)"/>
+    <!-- s3 -> viewer -->
+    <path d="M 800 170 C 900 170, 930 250, 1048 250" fill="none" stroke="#232f3e" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#ah)"/>
+    <text class="alabel" x="920" y="185" text-anchor="middle">presigned URL</text>
+  </svg>
+
+  <div class="node" style="left:160px; top:250px;">
+    <div class="icon icon-app">⚡</div>
+    <div class="label">App + errmagic</div>
+    <div class="cap">records last ~60s (fully masked)</div>
+  </div>
+
+  <div class="node" style="left:520px; top:250px;">
+    <div class="icon icon-api">📡</div>
+    <div class="label">Error ingest API</div>
+  </div>
+
+  <div class="node" style="left:735px; top:170px;">
+    <div class="icon icon-s3" style="width:64px;height:64px;font-size:32px;border-radius:15px;">🪣</div>
+    <div class="label" style="font-size:14px;">S3 etc.</div>
+    <div class="cap">replay <code>.json.gz</code></div>
+  </div>
+
+  <div class="node" style="left:735px; top:330px;">
+    <div class="icon icon-db" style="width:64px;height:64px;font-size:32px;border-radius:15px;">🗄</div>
+    <div class="label" style="font-size:14px;">DB / Slack</div>
+    <div class="cap">store &amp; notify</div>
+  </div>
+
+  <div class="node" style="left:1100px; top:250px;">
+    <div class="icon icon-viewer">▶</div>
+    <div class="label">Bundled viewer</div>
+    <div class="cap">replay playback</div>
+  </div>
+</div>
+</body>
+</html>
