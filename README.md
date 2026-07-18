@@ -6,13 +6,7 @@
 
 errmagic はクライアント（ブラウザ）側のライブラリです。**エラーの受け口となる API とリプレイの保存先はあなたのインフラで用意します**。
 
-```mermaid
-flowchart LR
-    A["ブラウザ<br/>(errmagic)"] -- "POST JSON<br/>エラー + replay" --> B["エラー受信API<br/>(自前実装)"]
-    B -- "replay を .json.gz で保存" --> C["オブジェクトストレージ<br/>(S3 など)"]
-    B -- "エラー本体を保存/通知" --> D["DB / ログ / Slack など"]
-    C -- "presigned URL" --> E["viewer/index.html<br/>(ローカル再生)"]
-```
+![errmagic アーキテクチャ全体図](docs/architecture-diagram.png)
 
 ### 必要なインフラ
 
