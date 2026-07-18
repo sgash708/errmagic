@@ -2,6 +2,28 @@
 
 外部SaaSなしのSentryライクなブラウザ用エラーレポーター。ブラウザJSエラーを捕捉し、直近約60秒の rrweb セッションリプレイを添えて任意のエンドポイントへ POST します。`dist/` をコミットしているため、git 依存でそのまま `pnpm install` できます（prepare ビルド不要）。
 
+## 全体アーキテクチャ
+
+errmagic はクライアント（ブラウザ）側のライブラリです。**エラーの受け口となる API とリプレイの保存先はあなたのインフラで用意します**。
+
+```mermaid
+flowchart LR
+    A["ブラウザ<br/>(errmagic)"] -- "POST JSON<br/>エラー + replay" --> B["エラー受信API<br/>(自前実装)"]
+    B -- "replay を .json.gz で保存" --> C["オブジェクトストレージ<br/>(S3 など)"]
+    B -- "エラー本体を保存/通知" --> D["DB / ログ / Slack など"]
+    C -- "presigned URL" --> E["viewer/index.html<br/>(ローカル再生)"]
+```
+
+### 必要なインフラ
+
+| コンポーネント | 必須 | 役割 |
+|---|---|---|
+| エラー受信API | ✅ | `endpoint` に指定する POST 受け口。後述の「API側でやること」を実装する |
+| オブジェクトストレージ（S3 など） | リプレイを使うなら | `replay` を `.json.gz` として保存。ビューアは presigned URL で読む |
+| エラー本体の保存先（DB / ログ基盤 / Slack 通知など） | 任意 | エラーの蓄積・検索・通知。方式は自由 |
+
+サーバー・保存先のベンダーは問いません（S3 の部分は GCS / R2 等でも presigned URL 相当が発行できれば同じ構成が組めます）。
+
 ## インストール
 
 ```bash
@@ -64,6 +86,44 @@ POST {endpoint}  Content-Type: application/json
   "replay_format": "rrweb-gzip-base64"                       // replayがnullならnull
 }
 ```
+
+## API側でやること
+
+`endpoint` に指定する受信APIの責務です。
+
+1. **ペイロードの受信・検証**: 上記 JSON を受け取り、`app` が想定するアプリ名かなどを検証する。
+2. **replay の保存**: `replay` を **base64 デコードするとそのまま gzip バイナリ**になるので、解凍せず `.json.gz` としてオブジェクトストレージに保存する（ビューアが読める形式）。保存した key を エラーレコードに紐付けておく。
+3. **エラー本体の保存・通知**: `name` / `message` / `stack` / `url` などを DB に保存したり、Slack 等に通知する（方式は自由）。
+4. **レスポンス**: クライアントは fire-and-forget（レスポンスを見ない）ので、`204 No Content` を返せば十分。エラーを返してもリトライはされません。
+
+```ts
+// 実装例（Hono + AWS SDK v3）
+app.post("/errors", async (c) => {
+  const report = await c.req.json();
+  if (report.app !== "my-app") return c.body(null, 400);
+
+  let replayKey: string | null = null;
+  if (report.replay) {
+    replayKey = `${report.app}/${crypto.randomUUID()}.json.gz`;
+    await s3.send(new PutObjectCommand({
+      Bucket: "your-error-replay-bucket",
+      Key: replayKey,
+      Body: Buffer.from(report.replay, "base64"), // デコードするだけ。解凍しない
+      ContentType: "application/gzip",
+    }));
+  }
+
+  await db.insert(errors).values({ ...pick(report), replayKey });
+  return c.body(null, 204);
+});
+```
+
+### 運用上の注意
+
+- **ボディサイズ上限**: `replay` は圧縮後でも数百KB〜数MBになり得ます。API側のリクエストボディ上限（API Gateway / nginx / フレームワークのデフォルト）を確認してください。超過時に 413 を返しても、クライアントはエラーになりません（握りつぶします）。
+- **CORS**: アプリと別オリジンにエンドポイントを置く場合は、`POST` + `Content-Type: application/json` を許可する CORS 設定が必要です。
+- **abuse 対策**: エンドポイントはブラウザから叩ける公開URLになるため、rate limit や `app` 名の検証、Origin チェックなどを入れることを推奨します。
+- **重複**: クライアント側で5分デデュープしていますが、複数ユーザーが同じエラーを踏めばその数だけ届きます。集計・グルーピングはサーバー側の責務です。
 
 ## マスキング方針（プライバシー）
 
