@@ -1,0 +1,4 @@
+.agents/docs/sdd/
+node_modules/
+coverage/
+*.tgz

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>errmagic replay viewer</title>
+<!--
+  errmagic リプレイビューア
+  =======================
+  errmagic が送信するリプレイは "gzip(base64(JSON.stringify(rrweb events)))" ではなく
+  正しくは base64(gzip(JSON.stringify(rrweb events))) の文字列です（送信ペイロード契約参照）。
+  このページはそれを2通りの方法でデコードして rrweb-player で再生します。
+
+  使い方:
+    (a) ファイルから再生:
+        サーバー/S3から保存済みの replay を取り出し、
+        base64文字列をデコード→gzip展開したバイナリを `.json.gz` として保存し、
+        下のファイル選択から読み込んでください。
+        （あるいは replay の base64文字列を含む .txt / .json をそのまま選んでも構いません。
+         このページは中身を見て「gzipバイナリ」か「base64文字列」かを自動判定します）
+
+    (b) presigned URL から再生:
+        S3等に置かれた replay(base64テキスト) や gzipバイナリに対して
+        presigned URL を発行し、このページに ?src=<presigned URL> を付けて開いてください。
+        例: aws s3 presign s3://your-error-replay-bucket/<key> をコピーして
+            viewer/index.html?src=<そのURL> をブラウザで開く
+
+  依存ライブラリは CDN (unpkg) から読み込みます。オフライン環境では動作しません。
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+  }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #111;
+    color: #eee;
+  }
+  header {
+    padding: 12px 16px;
+    background: #1b1b1b;
+    border-bottom: 1px solid #333;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 14px;
+    margin: 0;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  #status {
+    font-size: 12px;
+    color: #9ad1ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #status.error {
+    color: #ff8080;
+  }
+  #player {
+    padding: 16px;
+  }
+  input[type="file"] {
+    color: inherit;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>errmagic replay viewer</h1>
+  <input id="file-input" type="file" accept=".gz,.json,.txt,application/gzip,application/json,text/plain" />
+  <span id="status">ファイルを選択するか ?src=&lt;presigned URL&gt; を付けて開いてください</span>
+</header>
+<div id="player"></div>
+
+<script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://unpkg.com/rrweb-player@1.0.0-alpha.4/dist/index.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/rrweb-player@1.0.0-alpha.4/dist/style.css" />
+
+<script>
+  (function () {
+    const statusEl = document.getElementById("status");
+    const playerEl = document.getElementById("player");
+    const fileInput = document.getElementById("file-input");
+
+    function setStatus(text, isError) {
+      statusEl.textContent = text;
+      statusEl.classList.toggle("error", Boolean(isError));
+    }
+
+    function base64ToBytes(base64) {
+      const binary = atob(base64.trim());
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    // 入力バイト列が gzip マジックナンバー(1f 8b)で始まるか判定する
+    function isGzip(bytes) {
+      return bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+    }
+
+    // 入力(バイト列 or base64テキスト由来のバイト列)から events(JSON配列)を取り出す
+    function decodeToEvents(rawBytes) {
+      let bytes = rawBytes;
+      if (!isGzip(bytes)) {
+        // gzipバイナリでなければ、テキスト(=base64)として解釈してデコードし直す
+        const text = new TextDecoder().decode(rawBytes).trim();
+        bytes = base64ToBytes(text);
+      }
+      const json = pako.ungzip(bytes, { to: "string" });
+      return JSON.parse(json);
+    }
+
+    function playEvents(events) {
+      playerEl.innerHTML = "";
+      // eslint-disable-next-line no-undef
+      new rrwebPlayer({
+        target: playerEl,
+        props: {
+          events: events,
+          width: Math.min(window.innerWidth - 32, 1024),
+        },
+      });
+      setStatus("再生準備完了（" + events.length + " イベント）");
+    }
+
+    async function loadFromFile(file) {
+      try {
+        setStatus("読み込み中: " + file.name);
+        const buf = await file.arrayBuffer();
+        const events = decodeToEvents(new Uint8Array(buf));
+        playEvents(events);
+      } catch (err) {
+        console.error(err);
+        setStatus("読み込みに失敗しました: " + err.message, true);
+      }
+    }
+
+    async function loadFromUrl(url) {
+      try {
+        setStatus("フェッチ中: " + url);
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
+        const buf = await res.arrayBuffer();
+        const events = decodeToEvents(new Uint8Array(buf));
+        playEvents(events);
+      } catch (err) {
+        console.error(err);
+        setStatus("フェッチに失敗しました: " + err.message, true);
+      }
+    }
+
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        loadFromFile(file);
+      }
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const src = params.get("src");
+    if (src) {
+      loadFromUrl(src);
+    }
+  })();
+</script>
+</body>
+</html>
