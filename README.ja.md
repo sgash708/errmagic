@@ -148,6 +148,8 @@ app.post("/errors", async (c) => {
 
 `viewer/index.html` は rrweb-player（CDN）でリプレイをローカル再生するための単一HTMLです。サーバーは不要です。
 
+![デモ: exampleアプリでエラーを発生させ、保存されたリプレイを同梱ビューアで再生する様子（テキスト・入力値は全てマスクされる）](docs/replay-demo.gif)
+
 1. ブラウザで `viewer/index.html` を直接開く
 2. S3などに保存された replay に対して presigned URL を発行する
 

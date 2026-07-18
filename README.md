@@ -148,6 +148,8 @@ app.post("/errors", async (c) => {
 
 `viewer/index.html` is a single HTML file that plays replays locally with rrweb-player (CDN). No server needed.
 
+![Demo: an error is reported from the example app, then the saved replay plays back in the bundled viewer — all text and inputs are masked](docs/replay-demo.gif)
+
 1. Open `viewer/index.html` directly in a browser
 2. Issue a presigned URL for a replay stored in S3 or similar
 
